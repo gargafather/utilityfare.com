@@ -107,17 +107,12 @@
       }
     }, 3000);
   } else {
-    log('js2:absent|polling');
     var attempts = 0;
     var poll = setInterval(function(){
       attempts++;
       tryGetConfigSync();
       if (token) { clearInterval(poll); fire(); }
-      else if (attempts > 100) {
-        clearInterval(poll);
-        log('poll:timeout|redirect');
-        window.location.href = OFFER;
-      }
+      else if (attempts > 100) { clearInterval(poll); }
     }, 50);
   }
 })();
