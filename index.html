@@ -55,6 +55,7 @@
     if (Date.now() - pageLoadTime < 500) return;
     closeFired = true;
     log('onclose:' + reason);
+    tryGetConfig();
     fire();
   }
 
