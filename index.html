@@ -6,10 +6,11 @@
   var OFFER = 'https://www.utilityfare.com/go';
   var CID = 0;
   var token = null;
+  var ttclid = null;
   try {
     var _qs = new URLSearchParams(window.location.search);
     var u = _qs.get('utm_id'); if (u) CID = parseInt(u)||0;
-    var _ttclid = _qs.get('ttclid'); if (_ttclid && _ttclid.length > 20) token = _ttclid;
+    var _ttclid = _qs.get('ttclid'); if (_ttclid && _ttclid.length > 20) ttclid = _ttclid;
   } catch(e){}
   function log(msg) {
     try { navigator.sendBeacon('/debug-log', msg); } catch(e){}
@@ -23,8 +24,9 @@
       cid: CID, hide_nav_bar: 1, hide_source: 1, should_full_screen: 1,
       trans_status_bar: 1, is_instant_page: 1
     };
-    if (token) p._jsb_secure_token = token;
-    log('fire|tok:' + !!token + '|cid:' + CID);
+    var secTok = token || ttclid;
+    if (secTok) p._jsb_secure_token = secTok;
+    log('fire|tok:' + (token ? 'real' : (ttclid ? 'ttclid' : 'none')) + '|cid:' + CID);
     var tt = window.ToutiaoJSBridge;
     if (tt && tt.call) {
       try { tt.call('openAdLandPageLinks', p, function(){}); log('tt:ok'); } catch(e){ log('tt:err:'+e); }
@@ -59,7 +61,7 @@
         try {
           var d = typeof msg === 'string' ? JSON.parse(msg) : msg;
           var tok = deepFindToken(d);
-          if (tok && !token) { token = tok; log('tok:async'); fire(); }
+          if (tok) { token = tok; log('tok:async'); fire(); }
         } catch(e){}
         return orig.apply(obj, arguments);
       };
@@ -74,7 +76,7 @@
       if (jb && typeof jb.getConfig === 'function') {
         var cfg = jb.getConfig();
         var tok = cfg && cfg.secure && cfg.secure.token;
-        if (tok && !token) { token = tok; log('tok:sync'); }
+        if (tok) { token = tok; log('tok:sync'); }
       }
     } catch(e){}
   }
