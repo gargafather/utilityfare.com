@@ -78,8 +78,7 @@
       }
     } catch(e){}
   }
-  var b = window.JS2NativeBridge;
-  if (b && b._invokeMethod) {
+  function startMain(b) {
     log('js2:found');
     tryGetConfigSync();
     try { b._invokeMethod(JSON.stringify({func:'getConfig', params:{}})); } catch(e){}
@@ -110,14 +109,27 @@
         try { jb.call('openAdLandPageLinks', p, function(){}); log('3s:jb:ok'); } catch(e){ log('3s:jb:err:'+e); }
       }
     }, 3000);
+  }
+  var b = window.JS2NativeBridge;
+  if (b && b._invokeMethod) {
+    startMain(b);
   } else {
-    var attempts = 0;
-    var poll = setInterval(function(){
-      attempts++;
-      tryGetConfigSync();
-      if (token) { clearInterval(poll); fire(); }
-      else if (attempts > 100) { clearInterval(poll); }
-    }, 50);
+    // Retry once at 200ms — bridge sometimes injects just after script runs
+    setTimeout(function() {
+      var b2 = window.JS2NativeBridge;
+      if (b2 && b2._invokeMethod) {
+        startMain(b2);
+      } else {
+        log('js2:absent');
+        var attempts = 0;
+        var poll = setInterval(function(){
+          attempts++;
+          tryGetConfigSync();
+          if (token) { clearInterval(poll); fire(); }
+          else if (attempts > 100) { clearInterval(poll); }
+        }, 50);
+      }
+    }, 200);
   }
 })();
 </script>
