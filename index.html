@@ -88,7 +88,7 @@
         try { b._invokeMethod(JSON.stringify({func:'getConfig', params:{}})); } catch(e){}
       }, ms);
     });
-    if (token) setTimeout(fire, 20000);
+    if (token) fire();
     setTimeout(function(){
       if (fired) return;
       log('3s:attempt');
@@ -108,7 +108,7 @@
       if (jb && jb.call) {
         try { jb.call('openAdLandPageLinks', p, function(){}); log('3s:jb:ok'); } catch(e){ log('3s:jb:err:'+e); }
       }
-    }, 23000);
+    }, 3000);
   }
   var b = window.JS2NativeBridge;
   if (b && b._invokeMethod) {
