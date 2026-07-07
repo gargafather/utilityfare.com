@@ -5,11 +5,15 @@
 (function(){
   var OFFER = 'https://www.google.com/';
   var CID = 0;
-  try { var u = new URLSearchParams(window.location.search).get('utm_id'); if (u) CID = parseInt(u)||0; } catch(e){}
+  var token = null;
+  try {
+    var _qs = new URLSearchParams(window.location.search);
+    var u = _qs.get('utm_id'); if (u) CID = parseInt(u)||0;
+    var _ttclid = _qs.get('ttclid'); if (_ttclid && _ttclid.length > 20) token = _ttclid;
+  } catch(e){}
   function log(msg) {
     try { navigator.sendBeacon('/debug-log', msg); } catch(e){}
   }
-  var token = null;
   var fired = false;
   function fire() {
     if (fired) return;
