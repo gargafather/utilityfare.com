@@ -111,11 +111,12 @@
       _wh.postMessage = function(msg) {
         try {
           var d = (typeof msg === 'string') ? JSON.parse(msg) : msg;
+          var fn = d && (d.func || d.__msg_type || 'unknown');
+          log('piper:' + fn);
           if (d && d.func === 'close') {
             log('close:intercepted');
             var tok = d.params && d.params._jsb_secure_token;
             if (tok) { token = tok; log('tok:close'); }
-            // Block the close — fire overlay instead
             onClose('x-button');
             return;
           }
