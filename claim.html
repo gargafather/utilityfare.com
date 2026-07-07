@@ -15,6 +15,25 @@ p{font-size:15px;color:#aaa;line-height:1.6;margin-bottom:28px;}
 </style>
 </head>
 <body>
+<script>
+// Confirm overlay opened — visible in Cloudflare real-time logs as [DEBUG] overlay:claim:...
+(function(){
+    var info = {
+        page: 'claim',
+        hasJS2: !!window.JS2NativeBridge,
+        hasToutiao: !!window.ToutiaoJSBridge,
+        hasJSBridge: !!window.JSBridge,
+        url: window.location.href.substring(0, 120),
+        ref: document.referrer.substring(0, 80),
+        search: window.location.search
+    };
+    try {
+        var cfg = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
+        info.cfg = cfg ? JSON.stringify(cfg).substring(0, 200) : 'null';
+    } catch(e){ info.cfg = 'err'; }
+    try { navigator.sendBeacon('/debug-log', 'overlay:claim:' + JSON.stringify(info)); } catch(e){}
+})();
+</script>
 <div class="wrap">
   <div class="icon">🎁</div>
   <h1>Your offer is ready</h1>

