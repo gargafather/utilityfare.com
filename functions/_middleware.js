@@ -10,15 +10,15 @@ async function firePixel(request, accessToken) {
   const ref = request.headers.get('referer')    || '';
 
   const body = {
-    pixel_code: PIXEL_ID,
-    event:      'PageView',
-    event_time: Math.floor(Date.now() / 1000),
-    context: {
-      page:       { url: url.href, referrer: ref },
-      user_agent: ua,
-      ip:         ip
-    },
-    properties: {}
+    event_source:    'web',
+    event_source_id: PIXEL_ID,
+    data: [{
+      event:      'PageView',
+      event_time: Math.floor(Date.now() / 1000),
+      user: { ip, user_agent: ua },
+      page: { url: url.href, referrer: ref },
+      properties: {},
+    }],
   };
 
   return fetch(TT_API, {
